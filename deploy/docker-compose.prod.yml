@@ -1,0 +1,223 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: cytaxi-postgres
+    environment:
+      POSTGRES_DB: cytaxi
+      POSTGRES_USER: cytaxi
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-cytaxi_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./tools/seed-db.sql:/docker-entrypoint-initdb.d/01-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cytaxi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: cytaxi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  nats:
+    image: nats:2-alpine
+    container_name: cytaxi-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: "--jetstream --store_dir /data"
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD", "nats-server", "--signal", "ldm=localhost:8222"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  bot-whatsapp:
+    build:
+      context: .
+      dockerfile: packages/bot-whatsapp/Dockerfile
+    container_name: cytaxi-bot
+    environment:
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://cytaxi:${DB_PASSWORD:-cytaxi_secret}@postgres:5432/cytaxi
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ride-service:
+    build:
+      context: .
+      dockerfile: packages/ride-service/Dockerfile
+    container_name: cytaxi-ride
+    environment:
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://cytaxi:${DB_PASSWORD:-cytaxi_secret}@postgres:5432/cytaxi
+      - PORT=3002
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  driver-service:
+    build:
+      context: .
+      dockerfile: packages/driver-service/Dockerfile
+    container_name: cytaxi-driver
+    environment:
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://cytaxi:${DB_PASSWORD:-cytaxi_secret}@postgres:5432/cytaxi
+      - PORT=3003
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  matching-engine:
+    build:
+      context: .
+      dockerfile: packages/matching-engine/Dockerfile
+    container_name: cytaxi-matching
+    environment:
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://cytaxi:${DB_PASSWORD:-cytaxi_secret}@postgres:5432/cytaxi
+      - PORT=3004
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: packages/notification-service/Dockerfile
+    container_name: cytaxi-notification
+    environment:
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://cytaxi:${DB_PASSWORD:-cytaxi_secret}@postgres:5432/cytaxi
+      - PORT=3005
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  geocoder-service:
+    build:
+      context: .
+      dockerfile: packages/geocoder-service/Dockerfile
+    container_name: cytaxi-geocoder
+    environment:
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - PORT=3006
+    ports:
+      - "3006:3006"
+    depends_on:
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  tracking-service:
+    build:
+      context: .
+      dockerfile: packages/tracking-service/Dockerfile
+    container_name: cytaxi-tracking
+    environment:
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - PORT=3007
+    ports:
+      - "3007:3007"
+    depends_on:
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: packages/web-central/Dockerfile
+    container_name: cytaxi-dashboard
+    ports:
+      - "3000:3000"
+    depends_on:
+      - ride-service
+      - driver-service
+      - matching-engine
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: cytaxi-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf
+      - ./deploy/ssl:/etc/nginx/ssl
+    depends_on:
+      - dashboard
+      - ride-service
+      - driver-service
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  nats_data:
