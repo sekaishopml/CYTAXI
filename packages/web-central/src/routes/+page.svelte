@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
+  import Map from '../components/Map.svelte';
 
   let stats = {
     activeRides: 0,
@@ -8,15 +9,69 @@
     totalPassengers: 0,
   };
 
+  let drivers: Array<{ id: string; lat: number; lon: number; status: string }> = [];
+  let activeRides: Array<{ id: string; passenger_id: string; status: string }> = [];
+  let interval: ReturnType<typeof setInterval>;
+
   onMount(async () => {
-    // TODO: Fetch real stats from API
-    stats = {
-      activeRides: 5,
-      onlineDrivers: 12,
-      completedToday: 48,
-      totalPassengers: 156,
-    };
+    // Fetch initial data
+    await fetchStats();
+    await fetchDrivers();
+    await fetchActiveRides();
+
+    // Poll for updates every 5 seconds
+    interval = setInterval(async () => {
+      await fetchStats();
+      await fetchDrivers();
+      await fetchActiveRides();
+    }, 5000);
   });
+
+  onDestroy(() => {
+    if (interval) {
+      clearInterval(interval);
+    }
+  });
+
+  async function fetchStats() {
+    try {
+      // TODO: Replace with real API calls
+      stats = {
+        activeRides: activeRides.length,
+        onlineDrivers: drivers.filter(d => d.status === 'online').length,
+        completedToday: 48,
+        totalPassengers: 156,
+      };
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  }
+
+  async function fetchDrivers() {
+    try {
+      // TODO: Replace with real API call to driver service
+      // For now, use mock data
+      drivers = [
+        { id: 'driver-1', lat: 19.4326, lon: -99.1332, status: 'online' },
+        { id: 'driver-2', lat: 19.4426, lon: -99.1432, status: 'online' },
+        { id: 'driver-3', lat: 19.4226, lon: -99.1232, status: 'busy' },
+      ];
+    } catch (error) {
+      console.error('Error fetching drivers:', error);
+    }
+  }
+
+  async function fetchActiveRides() {
+    try {
+      // TODO: Replace with real API call to ride service
+      // For now, use mock data
+      activeRides = [
+        { id: 'ride-1', passenger_id: 'passenger-1', status: 'in_progress' },
+      ];
+    } catch (error) {
+      console.error('Error fetching active rides:', error);
+    }
+  }
 </script>
 
 <div class="dashboard">
@@ -51,13 +106,29 @@
   <div class="content-grid">
     <div class="map-container">
       <h2>Mapa en Tiempo Real</h2>
-      <div id="map" class="map"></div>
+      <div class="map-wrapper">
+        <Map {drivers} activeRide={activeRides[0] || null} />
+      </div>
     </div>
 
     <div class="rides-panel">
-      <h2>Viajes Recientes</h2>
+      <h2>Viajes Activos</h2>
       <div class="rides-list">
-        <p class="placeholder">Cargando viajes...</p>
+        {#if activeRides.length === 0}
+          <p class="placeholder">No hay viajes activos</p>
+        {:else}
+          {#each activeRides as ride}
+            <div class="ride-card">
+              <div class="ride-header">
+                <span class="ride-id">{ride.id}</span>
+                <span class="ride-status">{ride.status}</span>
+              </div>
+              <div class="ride-details">
+                <p>Pasajero: {ride.passenger_id}</p>
+              </div>
+            </div>
+          {/each}
+        {/if}
       </div>
     </div>
   </div>
@@ -135,15 +206,45 @@
     font-size: 1.2rem;
   }
 
-  .map {
+  .map-wrapper {
     height: 500px;
-    background: #e0e0e0;
     border-radius: 8px;
+    overflow: hidden;
   }
 
   .rides-list {
     max-height: 500px;
     overflow-y: auto;
+  }
+
+  .ride-card {
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .ride-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .ride-id {
+    font-weight: bold;
+    color: #1a1a2e;
+  }
+
+  .ride-status {
+    background: #1a1a2e;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+  }
+
+  .ride-details {
+    color: #666;
   }
 
   .placeholder {
