@@ -105,6 +105,10 @@ export class RedisClient {
     return result === 1;
   }
 
+  async keys(pattern: string): Promise<string[]> {
+    return this.client.keys(pattern);
+  }
+
   // ===========================================
   // GEOCODING CACHE
   // ===========================================

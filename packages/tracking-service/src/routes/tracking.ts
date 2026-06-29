@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { redis, nats } from '@cytaxi/shared';
+import { redis, nats, db } from '@cytaxi/shared';
 import { config } from '../config';
 
 interface DriverLocation {
@@ -53,12 +53,12 @@ export const trackingRoutes = new Elysia()
   .get('/api/tracking/:rideId', async ({ params }) => {
     const { rideId } = params;
 
-    // Get all driver locations for this ride
+    // Get all driver locations for this ride from Redis
     const pattern = `tracking:${rideId}:*`;
     const keys = await redis.keys(pattern);
 
     if (keys.length === 0) {
-      return { error: 'No tracking data found for this ride' }, 404;
+      return { rideId, locations: [], message: 'No tracking data yet' };
     }
 
     const locations = [];
@@ -74,19 +74,31 @@ export const trackingRoutes = new Elysia()
   .get('/api/tracking/:rideId/eta', async ({ params }) => {
     const { rideId } = params;
 
-    // Get ride info
-    const rideKey = `ride:${rideId}`;
-    const rideData = await redis.get(rideKey);
+    // Get ride info from PostgreSQL
+    const ride = await db.getRideById(rideId);
 
-    if (!rideData) {
+    if (!ride) {
       return { error: 'Ride not found' }, 404;
     }
 
-    const ride = JSON.parse(rideData);
+    // Get driver location from Redis
+    const pattern = `tracking:${rideId}:*`;
+    const keys = await redis.keys(pattern);
 
-    // Get driver location
-    const trackingKey = `tracking:${rideId}:${ride.driverId}`;
-    const trackingData = await redis.get(trackingKey);
+    if (keys.length === 0) {
+      return { 
+        rideId, 
+        driverLocation: null,
+        destination: { lat: parseFloat(ride.destination_lat), lon: parseFloat(ride.destination_lon) },
+        distance: null,
+        etaMinutes: null,
+        message: 'Driver location not available yet'
+      };
+    }
+
+    // Get the most recent location
+    const latestKey = keys[keys.length - 1];
+    const trackingData = await redis.get(latestKey);
 
     if (!trackingData) {
       return { error: 'Driver location not available' }, 404;
@@ -98,8 +110,8 @@ export const trackingRoutes = new Elysia()
     const distance = calculateDistance(
       driverLocation.lat,
       driverLocation.lon,
-      ride.destination.lat,
-      ride.destination.lon
+      parseFloat(ride.destination_lat),
+      parseFloat(ride.destination_lon)
     );
 
     // Estimate time (assuming average speed of 30 km/h in city)
@@ -109,7 +121,7 @@ export const trackingRoutes = new Elysia()
     return {
       rideId,
       driverLocation: { lat: driverLocation.lat, lon: driverLocation.lon },
-      destination: ride.destination,
+      destination: { lat: parseFloat(ride.destination_lat), lon: parseFloat(ride.destination_lon) },
       distance: distance.toFixed(2),
       etaMinutes,
     };

@@ -4,7 +4,7 @@ import { CreateRideRequest } from '@cytaxi/shared';
 
 // Valid state transitions
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  pending: ['matched', 'cancelled'],
+  requested: ['matched', 'cancelled'],
   matched: ['accepted', 'cancelled'],
   accepted: ['in_progress', 'cancelled'],
   in_progress: ['completed', 'cancelled'],

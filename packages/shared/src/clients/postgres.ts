@@ -54,17 +54,27 @@ export class PostgresClient {
   }
 
   async updateRideStatus(id: string, status: string, driverId?: string) {
-    const update: Record<string, unknown> = { status, updated_at: new Date() };
-    if (driverId) update.driver_id = driverId;
+    let updateQuery = `UPDATE rides SET status = '${status}', updated_at = NOW()`;
+    
+    if (driverId) {
+      updateQuery += `, driver_id = '${driverId}'`;
+    }
+    
+    if (status === 'in_progress') {
+      updateQuery += `, started_at = NOW()`;
+    }
+    
+    if (status === 'completed') {
+      updateQuery += `, completed_at = NOW()`;
+    }
+    
+    if (status === 'cancelled') {
+      updateQuery += `, cancelled_at = NOW()`;
+    }
+    
+    updateQuery += ` WHERE id = '${id}' RETURNING *`;
 
-    const [result] = await this.sql`
-      UPDATE rides
-      SET status = ${status},
-          driver_id = COALESCE(${driverId || null}, driver_id),
-          updated_at = NOW()
-      WHERE id = ${id}
-      RETURNING *
-    `;
+    const [result] = await this.sql.unsafe(updateQuery);
     return result;
   }
 
@@ -77,11 +87,11 @@ export class PostgresClient {
     return rides;
   }
 
-  async updateRideCost(id: string, cost: number, durationMinutes: number) {
+  async updateRideCost(id: string, fare: number, durationMinutes: number) {
     const [result] = await this.sql`
       UPDATE rides
-      SET cost = ${cost},
-          duration_minutes = ${durationMinutes},
+      SET fare = ${fare},
+          duration = ${durationMinutes},
           updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
