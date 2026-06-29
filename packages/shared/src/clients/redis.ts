@@ -4,7 +4,7 @@ export class RedisClient {
   private client: Redis;
   private static instance: RedisClient;
 
-  private constructor(url: string = 'redis://localhost:6379') {
+  private constructor(url: string = process.env.REDIS_URL || 'redis://localhost:6380') {
     this.client = new Redis(url, {
       maxRetriesPerRequest: 3,
       retryStrategy(times) {

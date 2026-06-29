@@ -15,7 +15,7 @@ export class NatsClient {
     return NatsClient.instance;
   }
 
-  async connect(url: string = 'nats://localhost:4222'): Promise<void> {
+  async connect(url: string = process.env.NATS_URL || 'nats://localhost:4223'): Promise<void> {
     try {
       this.connection = await connect({ servers: url });
       console.log('✅ Connected to NATS');

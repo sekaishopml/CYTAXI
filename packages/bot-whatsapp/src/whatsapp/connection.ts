@@ -6,9 +6,13 @@ import makeWASocket, {
   makeInMemoryStore,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
+import pino from 'pino';
 import path from 'path';
-import { config } from './config';
+import { fileURLToPath } from 'url';
 import { handleMessage } from './handlers';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const logger = pino({ level: 'silent' });
 

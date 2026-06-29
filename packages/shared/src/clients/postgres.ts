@@ -14,7 +14,7 @@ export class PostgresClient {
 
   static getInstance(connectionString?: string): PostgresClient {
     if (!PostgresClient.instance) {
-      const connStr = connectionString || process.env.DATABASE_URL || 'postgresql://cytaxi:cytaxi_secret@localhost:5432/cytaxi';
+      const connStr = connectionString || process.env.DATABASE_URL || 'postgresql://cytaxi:cytaxi_secret@localhost:5433/cytaxi';
       PostgresClient.instance = new PostgresClient(connStr);
     }
     return PostgresClient.instance;
