@@ -1,0 +1,18 @@
+{
+  "name": "@cytaxi/pwa-ubicacion",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/app.ts",
+    "build": "bun build src/app.ts --outdir dist --target bun",
+    "start": "bun run dist/app.js"
+  },
+  "dependencies": {
+    "elysia": "^1.0.0",
+    "@elysiajs/static": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.4.5"
+  }
+}

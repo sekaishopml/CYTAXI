@@ -1,0 +1,27 @@
+{
+  "name": "cytaxi-platform",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:shared": "bun run --cwd packages/shared build",
+    "dev:bot": "bun run --cwd packages/bot-whatsapp dev",
+    "dev:ride": "bun run --cwd packages/ride-service dev",
+    "dev:driver": "bun run --cwd packages/driver-service dev",
+    "dev:matching": "bun run --cwd packages/matching-engine dev",
+    "dev:notification": "bun run --cwd packages/notification-service dev",
+    "dev:geocoder": "bun run --cwd packages/geocoder-service dev",
+    "dev:dashboard": "bun run --cwd packages/web-central dev",
+    "dev:app": "bun run --cwd packages/app-conductor dev",
+    "dev:pwa": "bun run --cwd packages/pwa-ubicacion dev",
+    "dev:all": "bun run dev:shared && concurrently \"bun run dev:bot\" \"bun run dev:ride\" \"bun run dev:driver\" \"bun run dev:matching\" \"bun run dev:notification\" \"bun run dev:geocoder\" \"bun run dev:dashboard\"",
+    "build:all": "bun run --cwd packages/shared build && concurrently \"bun run --cwd packages/bot-whatsapp build\" \"bun run --cwd packages/ride-service build\" \"bun run --cwd packages/driver-service build\" \"bun run --cwd packages/matching-engine build\" \"bun run --cwd packages/notification-service build\" \"bun run --cwd packages/geocoder-service build\" \"bun run --cwd packages/web-central build\"",
+    "test": "bun test --cwd packages/*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}

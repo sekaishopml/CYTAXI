@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CYTAXI - Compartir Ubicación</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+      }
+
+      .container {
+        text-align: center;
+        padding: 2rem;
+        max-width: 400px;
+      }
+
+      .logo {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .subtitle {
+        color: #aaa;
+        margin-bottom: 2rem;
+      }
+
+      .btn {
+        display: block;
+        width: 100%;
+        padding: 1rem;
+        margin: 1rem 0;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      .btn-primary {
+        background: #ffd700;
+        color: #1a1a2e;
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .status {
+        margin-top: 2rem;
+        padding: 1rem;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .status.success {
+        background: rgba(46, 204, 113, 0.2);
+        border: 1px solid #2ecc71;
+      }
+
+      .status.error {
+        background: rgba(231, 76, 60, 0.2);
+        border: 1px solid #e74c3c;
+      }
+
+      .status.loading {
+        background: rgba(52, 152, 219, 0.2);
+        border: 1px solid #3498db;
+      }
+
+      .coordinates {
+        margin-top: 1rem;
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: #aaa;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">🚕</div>
+      <h1>CYTAXI</h1>
+      <p class="subtitle">Comparte tu ubicación para solicitar un viaje</p>
+
+      <div id="location-section">
+        <button id="share-btn" class="btn btn-primary">
+          📍 Compartir Mi Ubicación
+        </button>
+
+        <button id="manual-btn" class="btn btn-secondary">
+          ✏️ Escribir Dirección
+        </button>
+      </div>
+
+      <div id="manual-section" class="hidden">
+        <input
+          type="text"
+          id="address-input"
+          placeholder="Ej: Av. Amazonas y Naciones Unidas"
+          style="
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+          "
+        />
+        <button id="submit-address" class="btn btn-primary">
+          Enviar Dirección
+        </button>
+        <button id="cancel-manual" class="btn btn-secondary">
+          Cancelar
+        </button>
+      </div>
+
+      <div id="status" class="status hidden">
+        <p id="status-text"></p>
+        <div id="coordinates" class="coordinates hidden"></div>
+      </div>
+    </div>
+
+    <script>
+      const shareBtn = document.getElementById('share-btn');
+      const manualBtn = document.getElementById('manual-btn');
+      const locationSection = document.getElementById('location-section');
+      const manualSection = document.getElementById('manual-section');
+      const addressInput = document.getElementById('address-input');
+      const submitAddress = document.getElementById('submit-address');
+      const cancelManual = document.getElementById('cancel-manual');
+      const statusDiv = document.getElementById('status');
+      const statusText = document.getElementById('status-text');
+      const coordinatesDiv = document.getElementById('coordinates');
+
+      function showStatus(message, type = 'loading') {
+        statusDiv.className = `status ${type}`;
+        statusText.textContent = message;
+        statusDiv.classList.remove('hidden');
+      }
+
+      function hideStatus() {
+        statusDiv.classList.add('hidden');
+      }
+
+      function returnToWhatsApp(data) {
+        // Formato para regresar al chat con los datos
+        const message = encodeURIComponent(
+          `📍 CYTAXI Ubicación:\nLat: ${data.lat}\nLon: ${data.lon}${data.address ? `\nDirección: ${data.address}` : ''}`
+        );
+
+        // Intentar regresar a WhatsApp
+        window.location.href = `whatsapp://send?text=${message}`;
+
+        // Si WhatsApp no está disponible, mostrar los datos
+        showStatus(
+          `Ubicación capturada:\nLat: ${data.lat}\nLon: ${data.lon}`,
+          'success'
+        );
+        coordinatesDiv.textContent = `${data.lat.toFixed(6)}, ${data.lon.toFixed(6)}`;
+        coordinatesDiv.classList.remove('hidden');
+      }
+
+      // Compartir ubicación GPS
+      shareBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          showStatus('Tu navegador no soporta geolocalización', 'error');
+          return;
+        }
+
+        showStatus('Obteniendo tu ubicación...');
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            showStatus('Ubicación obtenida exitosamente', 'success');
+            returnToWhatsApp({ lat: latitude, lon: longitude });
+          },
+          (error) => {
+            let errorMsg = 'Error al obtener ubicación';
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMsg = 'Permiso de ubicación denegado';
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMsg = 'Ubicación no disponible';
+                break;
+              case error.TIMEOUT:
+                errorMsg = 'Tiempo de espera agotado';
+                break;
+            }
+            showStatus(errorMsg, 'error');
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
+          }
+        );
+      });
+
+      // Mostrar sección de dirección manual
+      manualBtn.addEventListener('click', () => {
+        locationSection.classList.add('hidden');
+        manualSection.classList.remove('hidden');
+        addressInput.focus();
+      });
+
+      // Cancelar entrada manual
+      cancelManual.addEventListener('click', () => {
+        manualSection.classList.add('hidden');
+        locationSection.classList.remove('hidden');
+        hideStatus();
+      });
+
+      // Enviar dirección manual
+      submitAddress.addEventListener('click', () => {
+        const address = addressInput.value.trim();
+        if (!address) {
+          showStatus('Por favor, escribe una dirección', 'error');
+          return;
+        }
+
+        showStatus('Procesando dirección...');
+
+        // Aquí se enviaría la dirección al servicio de geocodificación
+        // Por ahora, solo mostramos la dirección
+        returnToWhatsApp({ lat: 0, lon: 0, address });
+      });
+    </script>
+  </body>
+</html>
