@@ -77,6 +77,18 @@ export class PostgresClient {
     return rides;
   }
 
+  async updateRideCost(id: string, cost: number, durationMinutes: number) {
+    const [result] = await this.sql`
+      UPDATE rides
+      SET cost = ${cost},
+          duration_minutes = ${durationMinutes},
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
+    return result;
+  }
+
   // ===========================================
   // DRIVER OPERATIONS
   // ===========================================
