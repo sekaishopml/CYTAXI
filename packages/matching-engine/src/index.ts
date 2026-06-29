@@ -22,7 +22,13 @@ async function init() {
     await matcher.findAndAssignDriver(data);
   });
 
-  console.log('👂 Escuchando eventos de viajes...');
+  // Escuchar respuestas de conductores
+  await nats.subscribe('driver.ride_response', async (data: any) => {
+    console.log('📩 Driver response:', data.driverId, data.accepted ? 'accepted' : 'rejected');
+    await matcher.handleDriverResponse(data.rideId, data.driverId, data.accepted);
+  });
+
+  console.log('👂 Escuchando eventos de viajes y respuestas de conductores...');
 }
 
 init().catch(console.error);

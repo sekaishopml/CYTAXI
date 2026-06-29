@@ -38,10 +38,12 @@ export class NatsClient {
       throw new Error('NATS not connected');
     }
     const sub = this.connection.subscribe(subject);
-    for await (const msg of sub) {
-      const decoded = JSON.parse(sc.decode(msg.data));
-      callback(decoded);
-    }
+    (async () => {
+      for await (const msg of sub) {
+        const decoded = JSON.parse(sc.decode(msg.data));
+        callback(decoded);
+      }
+    })();
   }
 
   async request(subject: string, data: unknown, timeout: number = 5000): Promise<unknown> {
