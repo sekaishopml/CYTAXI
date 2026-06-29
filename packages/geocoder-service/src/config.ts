@@ -5,6 +5,6 @@ export const config = {
     userAgent: process.env.NOMINATIM_USER_AGENT || 'CYTAXI/1.0',
   },
   redis: {
-    url: process.env.REDIS_URL || 'redis://localhost:6379',
+    url: process.env.REDIS_URL || 'redis://localhost:6380',
   },
 };
